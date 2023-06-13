@@ -1,36 +1,78 @@
 import { legacy_createStore as createStore } from "redux";
 
-const add = document.getElementById("add");
-const minus = document.getElementById("minus");
-const number = document.querySelector("span");
+const form = document.querySelector("form");
+const input = document.querySelector("input");
+const ul = document.querySelector("ul");
 
-const ADD = "ADD";
-const MINUS = "MINUS";
+const ADD_TODO = "ADD_TODO";
+const DELETE_TODO = "DELETE_TODO";
 
-number.innerText = 0;
+const addToDo = (text) => {
+  return {
+    type: ADD_TODO,
+    text,
+  };
+};
 
-//reducer은 data를 modify하는 function
-const countModifier = (count = 0, action) => {
+const deleteToDo = (id) => {
+  return {
+    type: DELETE_TODO,
+    id,
+  };
+};
+
+//never mutate the state. Return new state objects
+//Arr.push() <= 이런거 하지말란 뜻. 스프레드 문법 활용하기
+// 새로운 배열을 만들어서 기존의 state내용을 모두 가져오고, 새로운 내용을 추가한 뒤 return
+
+const reducer = (state = [], action) => {
   switch (action.type) {
-    case ADD:
-      return count + 1;
-    case MINUS:
-      return count - 1;
+    case ADD_TODO:
+      const newToDoObj = { text: action.text, id: Date.now() };
+      return [newToDoObj, ...state];
+    case DELETE_TODO:
+      const cleaned = state.filter((toDo) => toDo.id !== action.id);
+      return cleaned;
     default:
-      return count;
+      return state;
   }
 };
 
-const countStore = createStore(countModifier);
+const store = createStore(reducer);
 
-const onChange = () => {
-  number.innerText = countStore.getState();
+store.subscribe(() => console.log(store.getState()));
+
+const dispatchAddToDo = (text) => {
+  store.dispatch(addToDo(text));
 };
 
-countStore.subscribe(onChange); // store 변화 감지 후 onChange로 span 값 변화
+const dispatchDeleteToDo = (e) => {
+  const id = parseInt(e.target.parentNode.id);
+  store.dispatch(deleteToDo(id));
+};
 
-add.addEventListener("click", () => countStore.dispatch({ type: ADD }));
-minus.addEventListener("click", () => countStore.dispatch({ type: MINUS }));
+const paintToDos = () => {
+  const toDos = store.getState();
+  ul.innerHTML = "";
+  toDos.forEach((toDo) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.innerText = "X";
+    btn.addEventListener("click", dispatchDeleteToDo);
+    li.id = toDo.id;
+    li.innerText = toDo.text;
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+};
 
-// 버튼 누르면 => dispatch로 action 전달 => reducer에서 action 체크 => 데이터 수정 후 store저장
-// => subscribe가 값 변화 감지 => 콜백함수(onchange)로 알아서 변경값 조정
+store.subscribe(paintToDos);
+
+const onSubmit = (e) => {
+  e.preventDefault();
+  const toDo = input.value;
+  input.value = "";
+  dispatchAddToDo(toDo);
+};
+
+form.addEventListener("submit", onSubmit);
